@@ -1,0 +1,28 @@
+{
+  "name": "ArduinoThread",
+  "version": "2.1.0",
+  "description": "Cooperative multitasking scheduler for Arduino. Schedule periodic callbacks with configurable intervals, thread naming, run-time profiling, and millis() rollover protection.",
+  "keywords": ["thread", "scheduler", "multitasking", "cooperative", "timer"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GordonAnderson/ArduinoThread"
+  },
+  "authors": [
+    {
+      "name": "Ivan Seidel Gomes",
+      "url": "https://github.com/ivanseidel",
+      "maintainer": false
+    },
+    {
+      "name": "Gordon Anderson",
+      "url": "https://gaacustom.com",
+      "maintainer": true
+    }
+  ],
+  "license": "Public Domain",
+  "frameworks": "arduino",
+  "platforms": "*",
+  "build": {
+    "srcDir": "src"
+  }
+}

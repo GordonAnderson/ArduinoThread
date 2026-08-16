@@ -1,6 +1,13 @@
 # ArduinoThread
 
-Cooperative multitasking scheduler for Arduino — schedule periodic callbacks with configurable intervals, human-readable thread names, execution-time profiling, and `millis()` rollover protection.
+Cooperative multitasking scheduler for **Arduino and bare-metal STM32Cube** — schedule periodic callbacks with configurable intervals, human-readable thread names, execution-time profiling, and `millis()` rollover protection.
+
+> **You are on the `stm32` branch.** Same sources build on both frameworks. The
+> library is heap-free here: the Arduino `String` members have been replaced.
+> See [Dual-framework support](#dual-framework-support) for the one behavioural
+> change, and `STM32_BRANCH_SETUP.md` for the porting notes.
+>
+> The Arduino-only version lives on `main`.
 
 ---
 
@@ -24,6 +31,12 @@ Released into the public domain by the original author.
 - Switched all time values to `unsigned long` to match `millis()` return type and ensure correct wraparound arithmetic
 - Cleaned up comments and code style throughout
 
+**On the `stm32` branch additionally:**
+
+- Removed the Arduino `String` class — the library is now heap-free
+- Added `gthread_compat.h`, mapping `millis()` to `HAL_GetTick()` on bare-metal builds
+- Added the `BareMetalThreads` example showing the STM32Cube integration pattern
+
 ---
 
 ## What "thread" means here
@@ -34,19 +47,66 @@ These are **not** OS threads. Each task is a function that runs to completion be
 
 ## Installation (PlatformIO)
 
-Add to `platformio.ini`:
-
 ```ini
 lib_deps =
-    https://github.com/YOUR_ORG/ArduinoThread.git
+    https://github.com/GordonAnderson/ArduinoThread.git#stm32
 ```
 
-Or reference a specific tag:
+Works unchanged with `framework = arduino` or `framework = stm32cube`.
 
-```ini
-lib_deps =
-    https://github.com/YOUR_ORG/ArduinoThread.git#v2.1.0
+---
+
+## Dual-framework support
+
+The same `Thread` and `ThreadController` sources build on both frameworks. The
+library needs exactly one thing from its host: a millisecond tick.
+
+| | Arduino | Bare-metal STM32Cube |
+|---|---|---|
+| Tick source | `millis()` | `HAL_GetTick()` |
+| Selected by | `ARDUINO` defined | `ARDUINO` not defined |
+| Scheduler API | — | **unchanged** |
+
+`gthread_compat.h` handles the switch. Nothing to configure in the common case;
+the series HAL header is chosen from the project's build flags (`STM32H743xx`,
+`STM32F407xx`, …).
+
+### One behavioural change to know about
+
+`setName()` **stores the pointer, it does not copy.** The caller owns the
+storage and must keep it alive for the life of the Thread.
+
+```cpp
+t.setName("sensor");                   // fine - literal, static storage
+
+char buf[16];                          // WRONG - buf goes out of scope
+snprintf(buf, sizeof buf, "ch%d", n);
+t.setName(buf);
 ```
+
+`getName()` never returns NULL — it returns `""` until set, which matters
+because `ThreadController::get(const char*)` passes it straight to `strcmp()`.
+
+### Build options
+
+| Flag | Effect |
+|---|---|
+| `GTHREAD_NO_HAL` | Forward-declare `HAL_GetTick()` instead of including the full HAL header. Resolves at link time |
+| `GTHREAD_MILLIS=expr` | Use a different tick source entirely — an RTOS tick, a hardware timer, or a host-test stub |
+| `USE_THREAD_NAMES` | Auto-generate `"Thread <id>"` names into a fixed buffer |
+| `THREAD_NAME_LEN` | Size of that buffer (default 24) |
+
+> **`GTHREAD_MILLIS` must be a global build flag**, never a `#define` in one
+> source file. `Thread.cpp` and `ThreadController.cpp` are separate translation
+> units and would silently fall back to `HAL_GetTick()` while the application
+> used the override — two different clocks in one program.
+
+### C++ classes in a CubeMX project
+
+CubeMX generates `main.c` and rewrites it on every code generation. Put the
+scheduler in an `app.cpp` reached through C-linkage entry points, and add the
+calls inside the USER CODE markers so they survive regeneration. See
+`examples/BareMetalThreads/` for the complete pattern.
 
 ## Installation (Arduino IDE)
 
@@ -181,17 +241,34 @@ root.add(&slowGroup);
 
 ## Enabling Thread Names (debug builds)
 
-Thread names consume extra RAM. They are **disabled by default**. To enable, uncomment in `Thread.h`:
+Auto-generated `"Thread <id>"` names consume extra RAM and are **disabled by
+default**. Enable with the `USE_THREAD_NAMES` build flag, or uncomment in
+`Thread.h`:
 
 ```cpp
 #define USE_THREAD_NAMES 1
 ```
+
+On this branch the name is a fixed `char[THREAD_NAME_LEN]` buffer (default 24
+bytes) rather than a heap-allocated `String`.
+
+This is independent of `setName()` / `getName()`, which are always available
+and cost one pointer.
 
 ---
 
 ## Notes on `millis()` Rollover
 
 `millis()` overflows back to zero after approximately 49.7 days. All timing values use `unsigned long` so subtraction-based comparisons wrap correctly. An additional guard in `shouldRun()` detects the case where the current time falls behind `last_run` and forces an immediate execution rather than a ~49-day stall.
+
+---
+
+## Examples
+
+| Example | Framework | Shows |
+|---|---|---|
+| `BasicThreads` | Arduino | Periodic tasks, `setup()`/`loop()` integration |
+| `BareMetalThreads` | STM32Cube | Same scheduler on bare metal: `app.cpp` pattern for CubeMX projects, nested controllers, the run-to-completion rule and the state-machine workaround for slow devices, and runtime enable/disable to create an interference-free quiet window |
 
 ---
 

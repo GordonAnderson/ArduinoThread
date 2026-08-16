@@ -1,8 +1,16 @@
 {
   "name": "ArduinoThread",
-  "version": "2.1.0",
-  "description": "Cooperative multitasking scheduler for Arduino. Schedule periodic callbacks with configurable intervals, thread naming, run-time profiling, and millis() rollover protection.",
-  "keywords": ["thread", "scheduler", "multitasking", "cooperative", "timer"],
+  "version": "2.2.0-stm32",
+  "description": "Cooperative multitasking scheduler for Arduino and bare-metal STM32Cube. Schedule periodic callbacks with configurable intervals, thread naming, run-time profiling, and millis() rollover protection. Heap-free; builds unchanged on both frameworks.",
+  "keywords": [
+    "thread",
+    "scheduler",
+    "multitasking",
+    "cooperative",
+    "timer",
+    "stm32",
+    "bare-metal"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/GordonAnderson/ArduinoThread"
@@ -20,7 +28,7 @@
     }
   ],
   "license": "Public Domain",
-  "frameworks": "arduino",
+  "frameworks": "*",
   "platforms": "*",
   "build": {
     "srcDir": "src"

@@ -27,15 +27,23 @@
 #ifndef Thread_h
 #define Thread_h
 
-#include <Arduino.h>
+#include "gthread_compat.h"
 #include <inttypes.h>
 
 /*
-    Uncomment to enable ThreadName strings (uses more RAM).
-    Useful when logging thread activity over Serial or displaying
-    a thread list in a UI.
+    Uncomment to enable auto-generated ThreadName strings (uses more RAM).
+    Useful when logging thread activity or displaying a thread list in a UI.
+
+    Heap-free: each Thread carries a small fixed buffer rather than a
+    dynamically allocated string.
 */
 // #define USE_THREAD_NAMES 1
+
+#ifdef USE_THREAD_NAMES
+  #ifndef THREAD_NAME_LEN
+    #define THREAD_NAME_LEN 24
+  #endif
+#endif
 
 class Thread {
 protected:
@@ -55,8 +63,14 @@ protected:
     // Duration of the most recent run() call (milliseconds)
     unsigned long runTime;
 
-    // Human-readable name for this thread (optional)
-    String Name;
+    // Human-readable name for this thread (optional).
+    //
+    // NOTE: this is a borrowed pointer, not a copy. The caller owns the
+    // storage and must keep it alive for the life of the Thread. String
+    // literals (the normal case) satisfy this automatically. Never defaults
+    // to NULL — it points at "" until setName() is called — so getName() is
+    // always safe to hand to strcmp().
+    const char *Name;
 
     /*
         Call this BEFORE executing the callback (as done in run() below).
@@ -80,8 +94,9 @@ public:
     int ThreadID;
 
 #ifdef USE_THREAD_NAMES
-    // Optional name string (enabled by USE_THREAD_NAMES above)
-    String ThreadName;
+    // Auto-generated name ("Thread <id>"), enabled by USE_THREAD_NAMES.
+    // Fixed buffer - no heap allocation.
+    char ThreadName[THREAD_NAME_LEN];
 #endif
 
     // Construct with an optional callback and interval (ms).
@@ -90,9 +105,13 @@ public:
     // --- Configuration ---
 
     // Set a human-readable name for this thread.
+    //
+    // The pointer is stored, not copied - the caller owns the storage and
+    // must keep it valid for the life of the Thread. Passing NULL resets the
+    // name to "" rather than storing NULL.
     void setName(const char *name);
 
-    // Return the thread's name (empty string if never set).
+    // Return the thread's name. Never NULL; returns "" if never set.
     const char *getName(void) const;
 
     // Set the interval between runs (milliseconds).

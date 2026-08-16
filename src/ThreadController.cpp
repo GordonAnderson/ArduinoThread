@@ -6,6 +6,7 @@
 
 #include "Thread.h"
 #include "ThreadController.h"
+#include <string.h>
 
 // ---------------------------------------------------------------------------
 // Constructor

@@ -5,6 +5,8 @@
 */
 
 #include "Thread.h"
+#include <stdio.h>
+#include <stdint.h>
 
 // ---------------------------------------------------------------------------
 // Constructor
@@ -19,11 +21,16 @@ Thread::Thread(void (*callback)(void), unsigned long _interval) {
     runTime            = 0;
 
     // Use the object's memory address as a simple unique ID.
-    ThreadID = (int)this;
+    // Use the object's address as a simple unique ID. Cast via uintptr_t so
+    // this is well-defined on both 32-bit and 64-bit builds (host-side tests
+    // are 64-bit; targets are 32-bit).
+    ThreadID = (int)(uintptr_t)this;
+
+    // Borrowed pointer, never NULL - see Thread.h.
+    Name = "";
 
 #ifdef USE_THREAD_NAMES
-    ThreadName = "Thread ";
-    ThreadName += ThreadID;
+    snprintf(ThreadName, sizeof(ThreadName), "Thread %d", ThreadID);
 #endif
 
     if (callback != NULL)
@@ -37,11 +44,13 @@ Thread::Thread(void (*callback)(void), unsigned long _interval) {
 // ---------------------------------------------------------------------------
 
 void Thread::setName(const char *name) {
-    Name = name;
+    // Never store NULL - getName() is fed straight to strcmp() by
+    // ThreadController::get(const char*).
+    Name = (name != NULL) ? name : "";
 }
 
 const char *Thread::getName(void) const {
-    return Name.c_str();
+    return Name;
 }
 
 void Thread::onRun(void (*callback)(void)) {

@@ -42,6 +42,10 @@ public:
     // controller as having run.
     void run() override;
 
+    // Identifies this object as a controller so callers walking a thread
+    // list can recurse into it.  See Thread::isController().
+    bool isController(void) const override { return true; }
+
     // --- Thread management ---
 
     // Add a thread to the first available slot.

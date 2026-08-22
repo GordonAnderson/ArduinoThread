@@ -18,6 +18,10 @@ Thread::Thread(void (*callback)(void), unsigned long _interval) {
     startTime          = 0;
     runTime            = 0;
 
+#ifdef THREAD_STATS
+    resetStats();
+#endif
+
     // Use the object's memory address as a simple unique ID.
     ThreadID = (int)this;
 
@@ -74,6 +78,43 @@ unsigned long Thread::runTimeMs(void) const {
     return runTime;
 }
 
+unsigned long Thread::getLastRunTime(void) const {
+    return last_run;
+}
+
+unsigned long Thread::getNextRunTime(void) const {
+    return _cached_next_run;
+}
+
+bool Thread::isEnabled(void) const {
+    return enabled;
+}
+
+void Thread::setEnabled(bool state) {
+    enabled = state;
+}
+
+bool Thread::isController(void) const {
+    return false;
+}
+
+#ifdef THREAD_STATS
+
+void Thread::resetStats(void) {
+    runCount = 0;
+    totalRun = 0;
+    minRun   = 0;
+    maxRun   = 0;
+    overruns = 0;
+}
+
+unsigned long Thread::avgRunMs(void) const {
+    if (runCount == 0) return 0;
+    return totalRun / runCount;
+}
+
+#endif // THREAD_STATS
+
 bool Thread::shouldRun(unsigned long time) {
     // If no snapshot was provided, read the clock now.
     if (time == 0) time = millis();
@@ -115,4 +156,18 @@ void Thread::run() {
     if (_onRun != NULL)
         _onRun();
     runTime = millis() - startTime;
+
+#ifdef THREAD_STATS
+    // minRun is seeded on the first run rather than with a sentinel, so a
+    // freshly reset Thread reports 0/0/0 instead of 0/0xFFFFFFFF/0.
+    if (runCount == 0 || runTime < minRun) minRun = runTime;
+    if (runTime > maxRun)                  maxRun = runTime;
+    totalRun += runTime;
+    runCount++;
+
+    // An overrun means the callback took longer than its own scheduling
+    // period, so the thread can never keep up.  Only meaningful for a
+    // periodic thread (interval > 0).
+    if (interval > 0 && runTime > interval) overruns++;
+#endif
 }

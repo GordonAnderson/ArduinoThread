@@ -135,6 +135,46 @@ public:
     // Return the wall-clock duration of the most recent run() call (ms).
     unsigned long runTimeMs(void) const;
 
+    // Return the timestamp (millis()) at which this thread last ran.
+    unsigned long getLastRunTime(void) const;
+
+    // Return the absolute timestamp (millis()) of the next scheduled run.
+    // Note this is the *cached* value; it is not recomputed until the thread
+    // next runs or setInterval()/setNextRunTime() is called.
+    unsigned long getNextRunTime(void) const;
+
+    // Enabled state.  `enabled` is a public member and may still be written
+    // directly; these are provided so callers that only hold a Thread* have a
+    // symmetric, greppable API.
+    bool isEnabled(void) const;
+    void setEnabled(bool state);
+
+    // Discriminates a plain Thread from a ThreadController without RTTI.
+    // ThreadController overrides this to return true.  Needed because a
+    // controller nested inside another controller is stored as a Thread* and
+    // is otherwise indistinguishable from a leaf task.
+    virtual bool isController(void) const;
+
+#ifdef THREAD_STATS
+    // --- Run-time statistics (opt in with -D THREAD_STATS) ---
+    //
+    // Roughly 20 bytes per Thread.  Updated in run(); a subclass that
+    // overrides run() and does not call Thread::run() will not accumulate
+    // statistics.
+
+    unsigned long runCount;   // Number of completed run() calls
+    unsigned long totalRun;   // Sum of all run durations (ms)
+    unsigned long minRun;     // Shortest run (ms); valid only if runCount > 0
+    unsigned long maxRun;     // Longest run (ms)
+    unsigned long overruns;   // Runs where runTime exceeded the interval
+
+    // Zero all counters.  Called by the constructor.
+    void resetStats(void);
+
+    // Mean run duration (ms), or 0 when runCount == 0.  Integer division.
+    unsigned long avgRunMs(void) const;
+#endif
+
     // Return true if enough time has elapsed (and the thread is enabled).
     // Pass an explicit millis() snapshot to avoid redundant calls when
     // checking many threads at once; omit (or pass 0) to read millis() here.

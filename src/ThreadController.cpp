@@ -7,6 +7,7 @@
 #include "Thread.h"
 #include "ThreadController.h"
 #include <string.h>
+#include <stdio.h>
 
 // ---------------------------------------------------------------------------
 // Constructor
@@ -18,8 +19,7 @@ ThreadController::ThreadController(unsigned long _interval) : Thread() {
     setInterval(_interval);
 
 #ifdef USE_THREAD_NAMES
-    ThreadName  = "ThreadController ";
-    ThreadName += ThreadID;
+    snprintf(ThreadName, sizeof(ThreadName), "ThreadController %d", ThreadID);
 #endif
 }
 
